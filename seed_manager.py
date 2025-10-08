@@ -1,13 +1,11 @@
-import os
-import datetime
-import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox, StringVar, BooleanVar, END, ttk
+from tkinter import ttk, messagebox, filedialog
+import csv
+import os
 
-# =========================
-# Settings
-# =========================
-EXPECTED_COLUMNS = [
+CSV_FILE = "seed_list.csv"
+
+COLUMNS = [
     "Name", "Type", "Life Cycle", "Germination (days)",
     "Seed Spacing (inches)", "Temperature (F)", "Seed Depth (inches)",
     "Approximate Start Date (mm/yy)", "Transplant Timeframe (weeks)",
@@ -16,445 +14,368 @@ EXPECTED_COLUMNS = [
     "Location", "Transplant Date", "Harvest Date", "Issues", "Comments"
 ]
 
-SEASONS = ["Spring", "Summer", "Autumn", "Winter", "Year-Around"]
-DEFAULT_FILE = "seed_list.xlsx"
+# Modern color palette
+COLORS = {
+    'bg_dark': '#1a1a1a',
+    'bg_medium': '#242424',
+    'bg_light': '#2d2d2d',
+    'accent': '#00d9ff',  # Aqua
+    'accent_hover': '#00b8d4',
+    'success': '#4ade80',  # Light green
+    'text': '#e0e0e0',
+    'text_dim': '#a0a0a0',
+    'border': '#3d3d3d',
+    'input_bg': '#1e1e1e',
+    'input_focus': '#0a4d5c'
+}
 
-# =========================
-# Colors & Fonts
-# =========================
-BG_COLOR = "#1e1e1e"
-FG_COLOR = "#ffffff"
-ENTRY_BG = "#2e2e2e"
-ENTRY_FG = "#ffffff"
-LABEL_COLOR = "#24EFEF"
-BTN_BG = "#539C9C"
-BTN_FG = "#ffffff"
-TABLE_BG = "#2a2d2e"
-TABLE_FG = "#ffffff"
-TABLE_HL = "#24EFEF"
-FONT_LABEL = ("Arial", 11)
-FONT_ENTRY = ("Arial", 11)
 
-# =========================
-# Seed Manager Class
-# =========================
 class SeedManagerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🌱 Seed Manager")
-        self.root.configure(bg=BG_COLOR)
-        self.filename = DEFAULT_FILE
-        self.df = pd.DataFrame(columns=EXPECTED_COLUMNS)
-        self.controls = {}
-        self.multi_values = {}
-        self.selected_index = None
+        self.root.title("🌿 Seed Manager")
+        self.root.geometry("1400x800")
+        self.root.configure(bg=COLORS['bg_dark'])
 
+        self.data = self.load_or_create_csv()
+        self.filtered_data = self.data.copy()
+
+        self.setup_styles()
         self.setup_ui()
-        self.ensure_default_file()
-        self.load_default_file()
 
-    # =========================
-    # UI Setup
-    # =========================
-    def setup_ui(self):
-        self.main = tk.Frame(self.root, bg=BG_COLOR)
-        self.main.pack(fill="both", expand=True)
+    def load_or_create_csv(self):
+        """Load existing CSV or create a blank one"""
+        if os.path.exists(CSV_FILE):
+            with open(CSV_FILE, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                data = list(reader)
+            return data
+        else:
+            with open(CSV_FILE, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=COLUMNS)
+                writer.writeheader()
+            return []
 
-        # Top toolbar
-        toolbar = tk.Frame(self.main, bg=BG_COLOR)
-        toolbar.pack(fill="x", pady=6, padx=8)
+    def save_to_csv(self):
+        """Save data to CSV file"""
+        with open(CSV_FILE, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=COLUMNS)
+            writer.writeheader()
+            writer.writerows(self.data)
 
-        # Dropdown for selecting name to edit
-        self.name_var = StringVar()
-        self.name_dropdown = ttk.Combobox(toolbar, textvariable=self.name_var, state="readonly")
-        self.name_dropdown.pack(side="left", padx=4)
-        self.name_dropdown.bind("<<ComboboxSelected>>", self.load_selected_name)
-
-        # Save & Save As buttons with electric hover
-        save_btn = tk.Button(toolbar, text="Save", command=self.auto_save, bg=LABEL_COLOR, fg=BTN_FG, font=FONT_LABEL)
-        save_btn.pack(side="left", padx=4)
-        self.add_electric_hover(save_btn)
-
-        save_as_btn = tk.Button(toolbar, text="Save As", command=self.save_as, bg=BTN_BG, fg=BTN_FG, font=FONT_LABEL)
-        save_as_btn.pack(side="left", padx=4)
-        self.add_electric_hover(save_as_btn)
-
-        tk.Button(toolbar, text="Help", command=self.show_help, bg=BTN_BG, fg=BTN_FG, font=FONT_LABEL).pack(side="right", padx=4)
-
-        # Content
-        content = tk.Frame(self.main, bg=BG_COLOR)
-        content.pack(fill="both", expand=True, padx=8, pady=(0,8))
-
-        # Left form
-        self.form_frame = tk.Frame(content, bg=BG_COLOR)
-        self.form_frame.pack(side="left", fill="y", padx=(0,8), pady=4)
-        self.build_form()
-
-        # Form buttons
-        btn_frame = tk.Frame(self.form_frame, bg=BG_COLOR)
-        btn_frame.pack(pady=8)
-        tk.Button(btn_frame, text="Clear Form", command=self.clear_form, width=15, bg=BTN_BG, fg=BTN_FG, font=FONT_LABEL).pack(side="left", padx=4)
-        tk.Button(btn_frame, text="Delete Selected Row", command=self.delete_selected_row, width=20, bg=BTN_BG, fg=BTN_FG, font=FONT_LABEL).pack(side="left", padx=4)
-
-        # Right: Table
-        right_frame = tk.Frame(content, bg=BG_COLOR)
-        right_frame.pack(side="left", fill="both", expand=True)
-        self.table_frame = tk.Frame(right_frame, bg=BG_COLOR)
-        self.table_frame.pack(fill="both", expand=True)
-
-        # Treeview for database
-        self.tree = ttk.Treeview(self.table_frame, columns=EXPECTED_COLUMNS, show="headings", selectmode="browse")
-        for col in EXPECTED_COLUMNS:
-            self.tree.heading(col, text=col)
-            self.tree.column(col, width=120, anchor="w")
-
-        # Scrollbars
-        vsb = ttk.Scrollbar(self.table_frame, orient="vertical", command=self.tree.yview)
-        hsb = ttk.Scrollbar(self.table_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
-        vsb.pack(side="right", fill="y")
-        hsb.pack(side="bottom", fill="x")
-        self.tree.pack(fill="both", expand=True, side="left")
-        self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
-
-        # Style Treeview
+    def setup_styles(self):
+        """Setup modern ttk styles"""
         style = ttk.Style()
-        style.theme_use("default")
-        style.configure("Treeview", background=TABLE_BG, foreground=TABLE_FG, fieldbackground=TABLE_BG, rowheight=25)
-        style.map('Treeview', background=[('selected', TABLE_HL)])
+        style.theme_use('clam')
+        
+        # Treeview style
+        style.configure("Treeview",
+                       background=COLORS['bg_medium'],
+                       foreground=COLORS['text'],
+                       fieldbackground=COLORS['bg_medium'],
+                       borderwidth=0,
+                       rowheight=30)
+        style.map('Treeview', background=[('selected', COLORS['accent'])])
+        
+        # Treeview heading
+        style.configure("Treeview.Heading",
+                       background=COLORS['bg_light'],
+                       foreground=COLORS['accent'],
+                       borderwidth=1,
+                       relief="flat")
+        style.map("Treeview.Heading",
+                 background=[('active', COLORS['accent_hover'])])
+        
+        # Combobox
+        style.configure("TCombobox",
+                       fieldbackground=COLORS['input_bg'],
+                       background=COLORS['bg_light'],
+                       foreground=COLORS['text'],
+                       borderwidth=1,
+                       arrowcolor=COLORS['accent'])
 
-    # =========================
-    # Electric hover effect
-    # =========================
-    def add_electric_hover(self, btn):
+    def create_modern_button(self, parent, text, command, bg_color=None):
+        """Create a modern styled button with hover effects"""
+        if bg_color is None:
+            bg_color = COLORS['bg_light']
+        
+        btn = tk.Button(parent, text=text, command=command,
+                       bg=bg_color, fg=COLORS['text'],
+                       font=('Segoe UI', 9, 'bold'),
+                       relief='flat',
+                       padx=20, pady=8,
+                       cursor='hand2',
+                       borderwidth=0)
+        
+        # Hover effects
         def on_enter(e):
-            btn.config(cursor="hand2", bg="#00FFFF")
+            btn['bg'] = COLORS['accent_hover']
+        
         def on_leave(e):
-            btn.config(cursor="", bg=BTN_BG if btn.cget("text")=="Save As" else LABEL_COLOR)
+            btn['bg'] = bg_color
+        
         btn.bind("<Enter>", on_enter)
         btn.bind("<Leave>", on_leave)
+        
+        return btn
 
-    # =========================
-    # Form Build
-    # =========================
-    def build_form(self):
-        self.season_vars = {}
-        months = [f"{i:02d}" for i in range(1,13)]
-        days = [f"{i:02d}" for i in range(1,32)]
-        years = [str(y) for y in range(datetime.datetime.now().year, datetime.datetime.now().year+6)]
+    def create_modern_entry(self, parent):
+        """Create a modern styled entry with aqua/green accent"""
+        entry = tk.Entry(parent,
+                        bg=COLORS['input_bg'],
+                        fg=COLORS['text'],
+                        insertbackground=COLORS['accent'],
+                        font=('Segoe UI', 10),
+                        relief='flat',
+                        borderwidth=2,
+                        highlightthickness=2,
+                        highlightbackground=COLORS['border'],
+                        highlightcolor=COLORS['success'])
+        
+        return entry
 
-        for col in EXPECTED_COLUMNS:
-            row = tk.Frame(self.form_frame, bg=BG_COLOR)
-            row.pack(fill="x", pady=4, padx=4)
-            tk.Label(row, text=col+":", width=20, anchor="w", fg=LABEL_COLOR, bg=BG_COLOR, font=FONT_LABEL).pack(side="left")
+    def setup_ui(self):
+        # === Header ===
+        header = tk.Frame(self.root, bg=COLORS['bg_dark'], height=60)
+        header.pack(fill="x", padx=20, pady=(10, 0))
+        
+        title = tk.Label(header, text="🌿 SEED MANAGER", 
+                        font=('Segoe UI', 24, 'bold'),
+                        bg=COLORS['bg_dark'], 
+                        fg=COLORS['accent'])
+        title.pack(side='left', pady=10)
+        
+        subtitle = tk.Label(header, text="Organize • Track • Grow", 
+                           font=('Segoe UI', 10),
+                           bg=COLORS['bg_dark'], 
+                           fg=COLORS['text_dim'])
+        subtitle.pack(side='left', padx=20, pady=10)
 
-            if col == "Heirloom (Y/N)":
-                var = StringVar(value="Unknown")
-                for val in ["Yes", "No", "Unknown"]:
-                    rb = tk.Radiobutton(row, text=val, variable=var, value=val, bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, font=FONT_LABEL)
-                    rb.pack(side="left", padx=2)
-                    rb.bind("<ButtonRelease-1>", lambda e: self.auto_save())
-                self.controls[col] = var
+        # === Toolbar ===
+        toolbar = tk.Frame(self.root, bg=COLORS['bg_medium'], height=50)
+        toolbar.pack(fill="x", padx=20, pady=10)
+        
+        # Left side buttons
+        left_frame = tk.Frame(toolbar, bg=COLORS['bg_medium'])
+        left_frame.pack(side='left', pady=10, padx=10)
+        
+        self.create_modern_button(left_frame, "↑ Sort by Name", self.sort_by_name).pack(side="left", padx=3)
+        self.create_modern_button(left_frame, "↑ Sort by Type", self.sort_by_type).pack(side="left", padx=3)
+        self.create_modern_button(left_frame, "✓ Heirloom Only", self.filter_heirloom, COLORS['success']).pack(side="left", padx=3)
+        
+        # Right side filters
+        right_frame = tk.Frame(toolbar, bg=COLORS['bg_medium'])
+        right_frame.pack(side='right', pady=10, padx=10)
+        
+        # Pairing Filter
+        tk.Label(right_frame, text="PAIRING:", bg=COLORS['bg_medium'], 
+                fg=COLORS['text_dim'], font=('Segoe UI', 8, 'bold')).pack(side="left", padx=(10, 5))
+        pairings = sorted(set(row.get("Pairings", "") for row in self.data if row.get("Pairings", "")))
+        self.pairing_var = tk.StringVar()
+        self.pairing_dropdown = ttk.Combobox(right_frame, textvariable=self.pairing_var, 
+                                            values=pairings, width=15, font=('Segoe UI', 9))
+        self.pairing_dropdown.pack(side="left", padx=5)
+        self.pairing_dropdown.bind("<<ComboboxSelected>>", self.filter_pairing)
+        
+        # Season Filter
+        tk.Label(right_frame, text="SEASON:", bg=COLORS['bg_medium'], 
+                fg=COLORS['text_dim'], font=('Segoe UI', 8, 'bold')).pack(side="left", padx=(10, 5))
+        seasons = sorted(set(row.get("Season/s", "") for row in self.data if row.get("Season/s", "")))
+        self.season_var = tk.StringVar()
+        self.season_dropdown = ttk.Combobox(right_frame, textvariable=self.season_var, 
+                                           values=seasons, width=15, font=('Segoe UI', 9))
+        self.season_dropdown.pack(side="left", padx=5)
+        self.season_dropdown.bind("<<ComboboxSelected>>", self.filter_season)
+        
+        self.create_modern_button(right_frame, "⟲ Reset", self.reset_filters).pack(side="left", padx=5)
 
-            elif col == "Season/s":
-                season_container = tk.Frame(row, bg=BG_COLOR)
-                season_container.pack(side="left", fill="x", expand=True)
-                for s in SEASONS:
-                    var = BooleanVar(value=False)
-                    cb = tk.Checkbutton(season_container, text=s, variable=var, bg=BG_COLOR, fg=FG_COLOR, selectcolor=BG_COLOR, font=FONT_LABEL)
-                    cb.pack(side="top", anchor="w")
-                    cb.bind("<ButtonRelease-1>", lambda e: self.auto_save())
-                    self.season_vars[s] = var
-                self.controls[col] = self.season_vars
+        # === Table Container ===
+        table_container = tk.Frame(self.root, bg=COLORS['bg_dark'])
+        table_container.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        
+        table_frame = tk.Frame(table_container, bg=COLORS['border'], padx=1, pady=1)
+        table_frame.pack(fill="both", expand=True)
 
-            elif col == "Temperature (F)":
-                temps = [str(i) for i in range(0, 101, 5)]
-                start_cb = ttk.Combobox(row, values=temps, width=5)
-                end_cb = ttk.Combobox(row, values=temps, width=5)
-                start_cb.pack(side="left")
-                tk.Label(row, text="to", fg=FG_COLOR, bg=BG_COLOR, font=FONT_LABEL).pack(side="left", padx=2)
-                end_cb.pack(side="left")
-                start_cb.bind("<<ComboboxSelected>>", lambda e: self.auto_save())
-                end_cb.bind("<<ComboboxSelected>>", lambda e: self.auto_save())
-                self.controls[col] = (start_cb, end_cb)
+        self.tree = ttk.Treeview(table_frame, columns=COLUMNS, show="headings", height=15)
 
-            elif col == "Approximate Start Date (mm/yy)":
-                month_cb = ttk.Combobox(row, values=months, width=3)
-                year_cb = ttk.Combobox(row, values=years, width=4)
-                month_cb.pack(side="left")
-                tk.Label(row, text="/", fg=FG_COLOR, bg=BG_COLOR, font=FONT_LABEL).pack(side="left", padx=2)
-                year_cb.pack(side="left")
-                month_cb.bind("<<ComboboxSelected>>", lambda e: self.auto_save())
-                year_cb.bind("<<ComboboxSelected>>", lambda e: self.auto_save())
-                self.controls[col] = (month_cb, year_cb)
+        for col in COLUMNS:
+            self.tree.heading(col, text=col.upper())
+            self.tree.column(col, width=150, anchor="w")
 
-            elif col in ("Seed Depth (inches)", "Seed Spacing (inches)"):
-                ent = tk.Entry(row, width=10, bg=ENTRY_BG, fg=ENTRY_FG, font=FONT_ENTRY)
-                ent.pack(side="left")
-                ent.bind("<KeyRelease>", lambda e: self.auto_save())
-                add_btn = tk.Button(row, text="+", command=lambda c=col: self.add_multi_value(c), bg=BTN_BG, fg=BTN_FG, font=FONT_LABEL)
-                add_btn.pack(side="left", padx=2)
-                display = tk.Label(row, text="", width=25, anchor="w", fg=FG_COLOR, bg=BG_COLOR, font=FONT_LABEL)
-                display.pack(side="left", padx=4)
-                self.controls[col] = ent
-                self.multi_values[col] = {"values": [], "display": display}
+        self.tree.pack(side="left", fill="both", expand=True)
 
-            elif col in ("Seed Started Date", "Transplant Date", "Harvest Date"):
-                m_var, d_var, y_var = StringVar(), StringVar(), StringVar()
-                m_cb = ttk.Combobox(row, values=months, width=3, textvariable=m_var)
-                d_cb = ttk.Combobox(row, values=days, width=3, textvariable=d_var)
-                y_cb = ttk.Combobox(row, values=years, width=4, textvariable=y_var)
-                m_cb.pack(side="left")
-                tk.Label(row, text="/", fg=FG_COLOR, bg=BG_COLOR, font=FONT_LABEL).pack(side="left", padx=2)
-                d_cb.pack(side="left")
-                tk.Label(row, text="/", fg=FG_COLOR, bg=BG_COLOR, font=FONT_LABEL).pack(side="left", padx=2)
-                y_cb.pack(side="left")
-                m_var.trace("w", lambda *args: self.auto_save())
-                d_var.trace("w", lambda *args: self.auto_save())
-                y_var.trace("w", lambda *args: self.auto_save())
-                self.controls[col] = (m_var, d_var, y_var)
+        # Scrollbars
+        y_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+        y_scroll.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=y_scroll.set)
 
-            elif col == "Comments":
-                ent = tk.Text(row, width=25, height=4, bg=ENTRY_BG, fg=ENTRY_FG, font=FONT_ENTRY)
-                ent.pack(side="left", fill="x", expand=True)
-                ent.bind("<KeyRelease>", lambda e: self.auto_save())
-                self.controls[col] = ent
+        x_scroll = ttk.Scrollbar(table_container, orient="horizontal", command=self.tree.xview)
+        x_scroll.pack(fill="x")
+        self.tree.configure(xscrollcommand=x_scroll.set)
 
-            else:
-                ent = tk.Entry(row, width=25, bg=ENTRY_BG, fg=ENTRY_FG, font=FONT_ENTRY)
-                ent.pack(side="left", fill="x", expand=True)
-                ent.bind("<KeyRelease>", lambda e: self.auto_save())
-                self.controls[col] = ent
+        self.tree.bind("<Double-1>", self.load_selected_to_form)
 
-    # =========================
-    # Multi Value Handling
-    # =========================
-    def add_multi_value(self, column_name):
-        ent = self.controls[column_name]
-        val = ent.get().strip()
-        if not val:
-            return
-        mv = self.multi_values[column_name]
-        mv["values"].append(val)
-        mv["display"].configure(text=", ".join(mv["values"]))
-        ent.delete(0, END)
-        self.auto_save()
-
-    # =========================
-    # Auto-save functionality
-    # =========================
-    def auto_save(self):
-        data = self.read_form_values()
-        if not data["Name"]:
-            return
-        # Check if editing existing row
-        if self.selected_index is not None:
-            for c in EXPECTED_COLUMNS:
-                self.df.at[self.selected_index, c] = data[c]
-        else:
-            if not self.df[(self.df["Name"]==data["Name"])].empty:
-                idx = self.df[self.df["Name"]==data["Name"]].index[0]
-                for c in EXPECTED_COLUMNS:
-                    self.df.at[idx,c] = data[c]
-            else:
-                self.df = pd.concat([self.df, pd.DataFrame([data])], ignore_index=True)
-        self.df.to_excel(self.filename, index=False, engine="openpyxl")
         self.refresh_table()
-        self.update_name_dropdown()
 
-    # =========================
-    # Load selected name from dropdown
-    # =========================
-    def load_selected_name(self, event=None):
-        name = self.name_var.get()
-        if not name:
-            return
-        idx = self.df[self.df["Name"]==name].index[0]
-        self.selected_index = idx
-        self.on_tree_select(None)
+        # === Form Section ===
+        form_container = tk.Frame(self.root, bg=COLORS['bg_dark'])
+        form_container.pack(fill="x", padx=20, pady=(0, 20))
+        
+        form_frame = tk.LabelFrame(form_container, 
+                                   text=" ADD / EDIT SEED ",
+                                   bg=COLORS['bg_medium'], 
+                                   fg=COLORS['accent'],
+                                   font=('Segoe UI', 11, 'bold'),
+                                   borderwidth=2,
+                                   relief='flat',
+                                   padx=15, 
+                                   pady=15)
+        form_frame.pack(fill="x")
 
-    # =========================
-    # File Handling
-    # =========================
-    def ensure_default_file(self):
-        if not os.path.exists(DEFAULT_FILE):
-            pd.DataFrame(columns=EXPECTED_COLUMNS).to_excel(DEFAULT_FILE, index=False, engine="openpyxl")
+        # Create grid layout for fields - 4 columns
+        self.entries = {}
+        fields_to_show = COLUMNS[:8]
+        
+        for i, col in enumerate(fields_to_show):
+            row = i // 4
+            column = (i % 4) * 2
+            
+            label = tk.Label(form_frame, text=col.upper(), 
+                           bg=COLORS['bg_medium'], 
+                           fg=COLORS['text_dim'],
+                           font=('Segoe UI', 8, 'bold'))
+            label.grid(row=row, column=column, sticky="w", padx=(5, 5), pady=8)
+            
+            entry = self.create_modern_entry(form_frame)
+            entry.grid(row=row, column=column+1, sticky="ew", padx=(0, 15), pady=8)
+            self.entries[col] = entry
+        
+        # Make columns expand proportionally
+        for i in range(8):
+            form_frame.columnconfigure(i, weight=1 if i % 2 == 1 else 0)
 
-    def load_default_file(self):
-        try:
-            df = pd.read_excel(DEFAULT_FILE, engine="openpyxl")
-            for c in EXPECTED_COLUMNS:
-                if c not in df.columns:
-                    df[c] = ""
-            self.df = df[EXPECTED_COLUMNS].copy()
-        except Exception:
-            self.df = pd.DataFrame(columns=EXPECTED_COLUMNS)
+        # === Action Buttons ===
+        button_frame = tk.Frame(form_container, bg=COLORS['bg_dark'])
+        button_frame.pack(pady=(15, 0))
+        
+        self.create_modern_button(button_frame, "➕ ADD / UPDATE", 
+                                 self.add_or_update_entry, COLORS['success']).pack(side="left", padx=5)
+        self.create_modern_button(button_frame, "🗑 DELETE", 
+                                 self.delete_entry, '#ef4444').pack(side="left", padx=5)
+        self.create_modern_button(button_frame, "✖ CLEAR FORM", 
+                                 self.clear_form).pack(side="left", padx=5)
+        self.create_modern_button(button_frame, "💾 EXPORT CSV", 
+                                 self.export_csv, COLORS['accent']).pack(side="left", padx=5)
+
+    # === Toolbar Functions ===
+    def sort_by_name(self):
+        self.filtered_data = sorted(self.filtered_data, key=lambda x: x.get("Name", "").lower())
         self.refresh_table()
-        self.update_name_dropdown()
 
-    def save_as(self):
-        f = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel files","*.xlsx")])
-        if f:
-            self.df.to_excel(f, index=False, engine="openpyxl")
-            self.filename = f
-            messagebox.showinfo("Saved", f"Saved to: {os.path.basename(f)}")
+    def sort_by_type(self):
+        self.filtered_data = sorted(self.filtered_data, key=lambda x: x.get("Type", "").lower())
+        self.refresh_table()
 
-    # =========================
-    # Update name dropdown
-    # =========================
-    def update_name_dropdown(self):
-        names = self.df["Name"].dropna().unique().tolist()
-        self.name_dropdown['values'] = names
+    def filter_heirloom(self):
+        self.filtered_data = [row for row in self.data if row.get("Heirloom (Y/N)", "").lower() == "y"]
+        self.refresh_table()
 
-    # =========================
-    # Form Reading
-    # =========================
-    def read_form_values(self):
-        row = {}
-        for col in EXPECTED_COLUMNS:
-            ctrl = self.controls[col]
-            if col in self.multi_values:
-                vals = self.multi_values[col]["values"].copy()
-                typed = ctrl.get().strip()
-                if typed:
-                    vals.append(typed)
-                row[col] = ", ".join(vals)
-            elif col == "Season/s":
-                sel = [s for s, var in ctrl.items() if var.get()]
-                row[col] = ", ".join(sel)
-            elif col in ("Seed Started Date", "Transplant Date", "Harvest Date"):
-                m,d,y = ctrl
-                if m.get() and d.get() and y.get():
-                    row[col] = f"{m.get()}/{d.get()}/{y.get()}"
-                else:
-                    row[col] = ""
-            elif col == "Temperature (F)":
-                s, e = ctrl[0].get(), ctrl[1].get()
-                row[col] = f"{s}-{e}" if s and e else s or e
-            elif col == "Approximate Start Date (mm/yy)":
-                m, y = ctrl[0].get(), ctrl[1].get()
-                row[col] = f"{m}/{y}" if m and y else ""
-            elif col == "Heirloom (Y/N)":
-                row[col] = ctrl.get()
-            elif col == "Comments":
-                row[col] = ctrl.get("1.0", END).strip()
-            else:
-                row[col] = ctrl.get().strip()
-        return row
+    def filter_pairing(self, event=None):
+        val = self.pairing_var.get().lower()
+        self.filtered_data = [row for row in self.data if val in row.get("Pairings", "").lower()]
+        self.refresh_table()
 
-    # =========================
-    # Treeview Handling
-    # =========================
-    def refresh_table(self):
-        self.tree.delete(*self.tree.get_children())
-        for i,row in self.df.iterrows():
-            values = [str(row[c]) for c in EXPECTED_COLUMNS]
-            self.tree.insert("", "end", iid=str(i), values=values)
+    def filter_season(self, event=None):
+        val = self.season_var.get().lower()
+        self.filtered_data = [row for row in self.data if val in row.get("Season/s", "").lower()]
+        self.refresh_table()
 
-    def on_tree_select(self, event):
-        sel = self.tree.selection()
-        if sel:
-            self.selected_index = int(sel[0])
-            row = self.df.iloc[self.selected_index]
-            for col in EXPECTED_COLUMNS:
-                val = str(row[col])
-                ctrl = self.controls[col]
-                if col in self.multi_values:
-                    self.multi_values[col]["values"] = [p.strip() for p in val.split(",") if p.strip()]
-                    self.multi_values[col]["display"].configure(text=", ".join(self.multi_values[col]["values"]))
-                    ctrl.delete(0, END)
-                elif col == "Season/s":
-                    for s in SEASONS:
-                        ctrl[s].set(s in val)
-                elif col == "Temperature (F)":
-                    if "-" in val:
-                        s,e = val.split("-",1)
-                        ctrl[0].set(s.strip())
-                        ctrl[1].set(e.strip())
-                    else:
-                        ctrl[0].set(val)
-                        ctrl[1].set("")
-                elif col == "Approximate Start Date (mm/yy)":
-                    if "/" in val:
-                        m,y = val.split("/",1)
-                        ctrl[0].set(m.strip())
-                        ctrl[1].set(y.strip())
-                elif col in ("Seed Started Date", "Transplant Date", "Harvest Date"):
-                    if val:
-                        try:
-                            mm,dd,yy = val.split("/")
-                            ctrl[0].set(mm)
-                            ctrl[1].set(dd)
-                            ctrl[2].set(yy)
-                        except:
-                            ctrl[0].set("")
-                            ctrl[1].set("")
-                            ctrl[2].set("")
-                elif col == "Heirloom (Y/N)":
-                    ctrl.set(val)
-                elif col == "Comments":
-                    ctrl.delete("1.0", END)
-                    ctrl.insert(END, val)
-                else:
-                    ctrl.delete(0, END)
-                    ctrl.insert(0, val)
+    def reset_filters(self):
+        self.filtered_data = self.data.copy()
+        self.pairing_var.set("")
+        self.season_var.set("")
+        self.refresh_table()
 
-    # =========================
-    # Clear & Delete
-    # =========================
-    def clear_form(self):
-        for col in EXPECTED_COLUMNS:
-            ctrl = self.controls[col]
-            if col in self.multi_values:
-                ctrl.delete(0, END)
-                self.multi_values[col]["values"] = []
-                self.multi_values[col]["display"].configure(text="")
-            elif col == "Season/s":
-                for s in SEASONS:
-                    ctrl[s].set(False)
-            elif col in ("Temperature (F)", "Approximate Start Date (mm/yy)"):
-                for c in ctrl:
-                    c.set("")
-            elif col in ("Seed Started Date", "Transplant Date", "Harvest Date"):
-                for c in ctrl:
-                    c.set("")
-            elif col == "Heirloom (Y/N)":
-                ctrl.set("Unknown")
-            elif col == "Comments":
-                ctrl.delete("1.0", END)
-            else:
-                ctrl.delete(0, END)
-        self.selected_index = None
+    def load_selected_to_form(self, event=None):
+        """Load selected row into form for editing"""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+        
+        values = self.tree.item(selected_item, "values")
+        for i, col in enumerate(COLUMNS[:8]):
+            self.entries[col].delete(0, tk.END)
+            if i < len(values):
+                self.entries[col].insert(0, str(values[i]))
 
-    def delete_selected_row(self):
-        if self.selected_index is not None:
-            self.df.drop(index=self.selected_index, inplace=True)
-            self.df.reset_index(drop=True, inplace=True)
-            self.selected_index = None
+    # === CRUD ===
+    def add_or_update_entry(self):
+        new_entry = {col: self.entries[col].get() for col in COLUMNS}
+        
+        for col in COLUMNS:
+            if col not in new_entry:
+                new_entry[col] = ""
+
+        if not new_entry["Name"]:
+            messagebox.showwarning("Input Error", "Name field cannot be empty.")
+            return
+
+        found = False
+        for i, row in enumerate(self.data):
+            if row.get("Name", "") == new_entry["Name"]:
+                self.data[i] = new_entry
+                found = True
+                break
+        
+        if not found:
+            self.data.append(new_entry)
+
+        self.save_to_csv()
+        self.reset_filters()
+        self.refresh_table()
+
+        messagebox.showinfo("Success", f"Entry for '{new_entry['Name']}' added/updated successfully.")
+        self.clear_form()
+
+    def delete_entry(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Select a row", "Please select a row to delete.")
+            return
+
+        name = self.tree.item(selected_item, "values")[0]
+        
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete '{name}'?"):
+            self.data = [row for row in self.data if row.get("Name", "") != name]
+            self.save_to_csv()
+            self.reset_filters()
             self.refresh_table()
-            self.update_name_dropdown()
-            self.clear_form()
-            self.auto_save()
+            messagebox.showinfo("Deleted", f"Entry for '{name}' deleted successfully.")
 
-    # =========================
-    # Help
-    # =========================
-    def show_help(self):
-        messagebox.showinfo("Help", "🌱 Seed Manager Instructions:\n\n"
-                            "- Fill out the form on the left.\n"
-                            "- Multi-values can be added using '+'.\n"
-                            "- Save frequently using 'Save' or 'Save As'.\n"
-                            "- Select a seed from the dropdown to edit.\n"
-                            "- Tree view shows all seeds.\n"
-                            "- Use 'Clear Form' or 'Delete Selected Row' as needed.")
+    def export_csv(self):
+        file_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if file_path:
+            with open(file_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=COLUMNS)
+                writer.writeheader()
+                writer.writerows(self.data)
+            messagebox.showinfo("Exported", f"Data exported successfully to {file_path}")
+
+    def refresh_table(self):
+        for row in self.tree.get_children():
+            self.tree.delete(row)
+
+        for row in self.filtered_data:
+            values = [row.get(col, "") for col in COLUMNS]
+            self.tree.insert("", "end", values=values)
+
+    def clear_form(self):
+        for entry in self.entries.values():
+            entry.delete(0, tk.END)
 
 
-# =========================
-# Main
-# =========================
 def main():
     root = tk.Tk()
-    root.geometry("1400x800")
     app = SeedManagerApp(root)
     root.mainloop()
 
