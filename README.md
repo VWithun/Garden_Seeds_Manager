@@ -43,7 +43,7 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
-git clone [https://github.com/VWithun/Seed-Manager.git](https://github.com/VWithun/Seed-Manager.git)
+git clone [https://github.com/VWithun/Garden_Seeds_Manager/tree/main](https://github.com/VWithun/Garden_Seeds_Manager/tree/main)
 cd Seed-Manager
 
 2. Ensure the Excel file exists
