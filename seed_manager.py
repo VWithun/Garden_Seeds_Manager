@@ -1,4 +1,4 @@
-# seed_manager.py
+# seed_manager.py  — Modernized UI (dark / "Spotify-ish" look)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
@@ -16,30 +16,31 @@ COLUMNS = [
     "Location", "Transplant Date", "Harvest Date", "Issues", "Comments"
 ]
 
-# Modern color palette
 COLORS = {
-    'bg_dark': '#1a1a1a',
-    'bg_medium': '#242424',
-    'bg_light': '#2d2d2d',
-    'accent': '#00d9ff',      # Aqua
-    'accent_hover': '#00b8d4',
-    'success': '#4ade80',     # Light green
-    'text': '#e0e0e0',
-    'text_dim': '#a0a0a0',
-    'border': '#3d3d3d',
-    'input_bg': '#1e1e1e',
-    'input_focus': '#0a4d5c',
-    'warn': '#f59e0b'
+    'bg_dark': '#0f1416',
+    'bg_medium': '#121617',
+    'bg_light': '#1f2628',
+    'accent': '#1db954',      # spotify-like green
+    'accent_hover': '#16a34a',
+    'success': '#4ade80',
+    'text': '#e6eef2',
+    'text_dim': '#9aa6ab',
+    'border': '#20282a',
+    'input_bg': '#0f1416',
+    'input_focus': '#133a2b',
+    'warn': '#f59e0b',
+    'danger': '#ef4444'
 }
 
-# Columns that are considered long-text (open in popup on double-click)
 LONG_TEXT_COLUMNS = {"Comments", "Benefits", "Uses", "Issues", "Pairings"}
 
 class SeedManagerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("🌿 Seed Manager")
+        # set a modern minimum and allow user to resize
         self.root.geometry("1400x820")
+        self.root.minsize(1100, 700)
         self.root.configure(bg=COLORS['bg_dark'])
 
         self.data = self.load_or_create_csv()
@@ -47,11 +48,10 @@ class SeedManagerApp:
 
         self.setup_styles()
 
-        # storage for widgets & state
         self.entries = {}
-        self.form_vars = {}          # StringVar / stateful combobox variables
-        self.multi_values = {}       # For lists like approx start dates and seed started dates
-        self.season_vars = {}        # season checkboxes
+        self.form_vars = {}
+        self.multi_values = {}
+        self.season_vars = {}
         self.selected_index = None
 
         self.setup_ui()
@@ -65,7 +65,6 @@ class SeedManagerApp:
                 reader = csv.DictReader(f)
                 return list(reader)
         else:
-            # create blank file with headers
             with open(CSV_FILE, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=COLUMNS)
                 writer.writeheader()
@@ -80,39 +79,48 @@ class SeedManagerApp:
     # ---------- styles ----------
     def setup_styles(self):
         style = ttk.Style()
+        # choose clam which gives us more skinning control
         style.theme_use('clam')
 
-        # Treeview styling tuned to show clearer column separation in dark theme
         style.configure("Treeview",
                         background=COLORS['bg_medium'],
                         foreground=COLORS['text'],
                         fieldbackground=COLORS['bg_medium'],
                         rowheight=28,
                         bordercolor=COLORS['border'],
-                        borderwidth=1)
+                        borderwidth=0,
+                        font=('Segoe UI', 10))
         style.map('Treeview', background=[('selected', COLORS['accent'])], foreground=[('selected', COLORS['bg_dark'])])
 
-        # Heading: slightly raised with accent text so headings visually separate columns
         style.configure("Treeview.Heading",
                         background=COLORS['bg_light'],
                         foreground=COLORS['accent'],
-                        relief='raised',
-                        font=('Segoe UI', 9, 'bold'),
-                        borderwidth=1)
+                        relief='flat',
+                        font=('Segoe UI', 10, 'bold'),
+                        borderwidth=0)
         style.map("Treeview.Heading", background=[('active', COLORS['accent_hover'])])
 
-        # Combobox (force dark list colors via option_add)
         style.configure("TCombobox",
                         fieldbackground=COLORS['input_bg'],
-                        foreground=COLORS['text'])
+                        foreground=COLORS['text'],
+                        background=COLORS['input_bg'],
+                        arrowcolor=COLORS['text'])
 
-        # Apply general option_add for popups / listboxes inside combobox
+        style.configure("TButton",
+                        background=COLORS['bg_light'],
+                        foreground=COLORS['text'],
+                        borderwidth=0,
+                        focusthickness=0,
+                        padding=6,
+                        font=('Segoe UI', 9, 'bold'))
+
+        style.configure("TLabel", background=COLORS['bg_dark'], foreground=COLORS['text'])
+
         self.root.option_add('*TCombobox*Listbox.background', COLORS['input_bg'])
         self.root.option_add('*TCombobox*Listbox.foreground', COLORS['text'])
         self.root.option_add('*TCombobox*Listbox.selectBackground', COLORS['accent'])
         self.root.option_add('*TCombobox*Listbox.selectForeground', COLORS['bg_dark'])
 
-        # Checkbutton style
         style.configure("TCheckbutton", background=COLORS['bg_medium'], foreground=COLORS['text'])
 
     # ---------- small helpers ----------
@@ -123,9 +131,10 @@ class SeedManagerApp:
                         bg=bg_color, fg=COLORS['text'],
                         font=('Segoe UI', 9, 'bold'),
                         relief='flat', padx=12, pady=6,
-                        cursor='hand2', borderwidth=0, width=width)
+                        cursor='hand2', borderwidth=0, width=width, activebackground=COLORS['accent_hover'])
         def on_enter(e):
-            btn['bg'] = COLORS['accent_hover']
+            # subtle brighten effect
+            btn['bg'] = COLORS['accent_hover'] if bg_color == COLORS['accent'] else '#2a3234'
         def on_leave(e):
             btn['bg'] = bg_color
         btn.bind("<Enter>", on_enter)
@@ -145,67 +154,105 @@ class SeedManagerApp:
 
     # ---------- UI layout ----------
     def setup_ui(self):
-        # header
-        header = tk.Frame(self.root, bg=COLORS['bg_dark'], height=64)
-        header.pack(fill='x', padx=16, pady=(8,6))
-        tk.Label(header, text="🌿 SEED MANAGER", font=('Segoe UI', 20, 'bold'),
-                 bg=COLORS['bg_dark'], fg=COLORS['accent']).pack(side='left')
-        tk.Label(header, text="Organize • Track • Grow", font=('Segoe UI', 10),
-                 bg=COLORS['bg_dark'], fg=COLORS['text_dim']).pack(side='left', padx=12, pady=6)
+        # top container: left sidebar + main content
+        top = tk.Frame(self.root, bg=COLORS['bg_dark'])
+        top.pack(fill='both', expand=True)
 
-        # toolbar: name dropdown + save/save as + filters
-        toolbar = tk.Frame(self.root, bg=COLORS['bg_medium'])
-        toolbar.pack(fill='x', padx=16, pady=(0,10))
+        # left sidebar
+        sidebar = tk.Frame(top, bg=COLORS['bg_light'], width=220)
+        sidebar.pack(side='left', fill='y', padx=(16,8), pady=16)
+        sidebar.pack_propagate(False)
 
-        # Name selection for quick edit
-        tk.Label(toolbar, text="Edit:", bg=COLORS['bg_medium'], fg=COLORS['text_dim']).pack(side='left', padx=(6,4))
+        # app badge
+        badge = tk.Label(sidebar, text="🌿\nSeedManager", bg=COLORS['bg_light'], fg=COLORS['text'], font=('Segoe UI', 16, 'bold'), justify='center')
+        badge.pack(pady=(18,6))
+
+        caption = tk.Label(sidebar, text="Organize • Track • Grow", bg=COLORS['bg_light'], fg=COLORS['text_dim'], font=('Segoe UI', 9))
+        caption.pack(pady=(0,12))
+
+        # quick actions in sidebar
+        sb_actions = tk.Frame(sidebar, bg=COLORS['bg_light'])
+        sb_actions.pack(pady=(8,12), fill='x', padx=12)
+
+        btn_quick_add = self.create_modern_button(sb_actions, "➕ New Seed", lambda: self.clear_form(), bg_color=COLORS['accent'])
+        btn_quick_add.pack(fill='x', pady=(0,8))
+        btn_export = self.create_modern_button(sb_actions, "💾 Export CSV", self.export_csv, bg_color=COLORS['bg_dark'])
+        btn_export.pack(fill='x', pady=(0,8))
+
+        # small hint
+        hint = tk.Label(sidebar, text="Tip: double-click rows to edit or view long text", bg=COLORS['bg_light'], fg=COLORS['text_dim'], wraplength=180, font=('Segoe UI', 9))
+        hint.pack(padx=12, pady=(8,8))
+
+        # search / filters section in sidebar
+        search_frame = tk.LabelFrame(sidebar, text="Search & Filters", bg=COLORS['bg_light'], fg=COLORS['text'], font=('Segoe UI', 10, 'bold'))
+        search_frame.pack(fill='x', padx=12, pady=(8,12))
+
+        tk.Label(search_frame, text="Search name:", bg=COLORS['bg_light'], fg=COLORS['text_dim'], font=('Segoe UI', 9)).pack(anchor='w', padx=8, pady=(6,0))
+        self.search_var = tk.StringVar()
+        search_entry = self.create_entry(search_frame, width=20)
+        search_entry.configure(textvariable=self.search_var)
+        search_entry.pack(padx=8, pady=(4,8), fill='x')
+        # live search
+        self.search_var.trace_add("write", lambda *a: self.live_search())
+
+        tk.Label(search_frame, text="Filter pairing:", bg=COLORS['bg_light'], fg=COLORS['text_dim'], font=('Segoe UI', 9)).pack(anchor='w', padx=8, pady=(4,0))
+        self.pairing_var = tk.StringVar()
+        self.pairing_dd = ttk.Combobox(search_frame, textvariable=self.pairing_var, values=[], width=20)
+        self.pairing_dd.pack(padx=8, pady=(4,8))
+        self.pairing_dd.bind("<<ComboboxSelected>>", lambda e: self.filter_pairing())
+
+        tk.Label(search_frame, text="Filter season:", bg=COLORS['bg_light'], fg=COLORS['text_dim'], font=('Segoe UI', 9)).pack(anchor='w', padx=8, pady=(4,0))
+        self.season_filter_var = tk.StringVar()
+        self.season_dd = ttk.Combobox(search_frame, textvariable=self.season_filter_var, values=[], width=20)
+        self.season_dd.pack(padx=8, pady=(4,8))
+        self.season_dd.bind("<<ComboboxSelected>>", lambda e: self.filter_season())
+
+        reset_btn = self.create_modern_button(search_frame, "⟲ Reset Filters", self.reset_filters, bg_color=COLORS['bg_dark'])
+        reset_btn.pack(padx=8, pady=(6,12), fill='x')
+
+        # main content area
+        main_area = tk.Frame(top, bg=COLORS['bg_dark'])
+        main_area.pack(side='left', fill='both', expand=True, padx=(8,16), pady=16)
+
+        # header (within main area)
+        header = tk.Frame(main_area, bg=COLORS['bg_dark'])
+        header.pack(fill='x', pady=(0,10))
+
+        title = tk.Label(header, text="🌿 SEED MANAGER", font=('Segoe UI', 18, 'bold'),
+                         bg=COLORS['bg_dark'], fg=COLORS['accent'])
+        title.pack(side='left')
+
+        sub = tk.Label(header, text="Your seeds, organized", font=('Segoe UI', 10),
+                       bg=COLORS['bg_dark'], fg=COLORS['text_dim'])
+        sub.pack(side='left', padx=12)
+
+        # toolbar: name dropdown + save + save as + sort
+        toolbar = tk.Frame(header, bg=COLORS['bg_dark'])
+        toolbar.pack(side='right')
+
+        tk.Label(toolbar, text="Edit:", bg=COLORS['bg_dark'], fg=COLORS['text_dim']).pack(side='left', padx=(6,4))
         self.name_var = tk.StringVar()
         self.name_dropdown = ttk.Combobox(toolbar, textvariable=self.name_var, values=[], width=32)
         self.name_dropdown.pack(side='left', padx=(0,8))
         self.name_dropdown.bind("<<ComboboxSelected>>", self.on_name_select)
 
-        # Save button (explicit)
-        save_btn = self.create_modern_button(toolbar, "💾 Save", self.manual_save, bg_color=COLORS['accent'], width=10)
+        save_btn = self.create_modern_button(toolbar, "💾 Save", self.manual_save, bg_color=COLORS['accent'])
         save_btn.pack(side='left', padx=6)
-        save_as_btn = self.create_modern_button(toolbar, "Save As", self.save_as, bg_color=COLORS['bg_light'], width=10)
+        save_as_btn = self.create_modern_button(toolbar, "Save As", self.save_as, bg_color=COLORS['bg_light'])
         save_as_btn.pack(side='left', padx=6)
 
-        # Right-side filter controls (kept compact)
-        filter_frame = tk.Frame(toolbar, bg=COLORS['bg_medium'])
-        filter_frame.pack(side='right', padx=6)
-
-        # Pairings filter - now built from individual comma-separated items across all rows
-        tk.Label(filter_frame, text="Pairing:", bg=COLORS['bg_medium'], fg=COLORS['text_dim']).pack(side='left', padx=(4,4))
-        self.pairing_var = tk.StringVar()
-        # initial values set in update_name_dropdown()
-        self.pairing_dd = ttk.Combobox(filter_frame, textvariable=self.pairing_var, values=[], width=18)
-        self.pairing_dd.pack(side='left', padx=(0,6))
-        self.pairing_dd.bind("<<ComboboxSelected>>", lambda e: self.filter_pairing())
-
-        tk.Label(filter_frame, text="Season:", bg=COLORS['bg_medium'], fg=COLORS['text_dim']).pack(side='left', padx=(4,4))
-        seasons = sorted(set([r.get("Season/s", "") for r in self.data if r.get("Season/s")]))
-        self.season_filter_var = tk.StringVar()
-        self.season_dd = ttk.Combobox(filter_frame, textvariable=self.season_filter_var, values=seasons, width=14)
-        self.season_dd.pack(side='left', padx=(0,6))
-        self.season_dd.bind("<<ComboboxSelected>>", lambda e: self.filter_season())
-
-        reset_btn = self.create_modern_button(filter_frame, "⟲ Reset", self.reset_filters)
-        reset_btn.pack(side='left', padx=4)
-
-        # main area: table + form stacked
-        main_area = tk.Frame(self.root, bg=COLORS['bg_dark'])
-        main_area.pack(fill='both', expand=True, padx=16, pady=(0,16))
-
-        # Table container at top
+        # Table container
         table_container = tk.Frame(main_area, bg=COLORS['border'])
-        table_container.pack(fill='both', expand=True, pady=(0,12))
+        table_container.pack(fill='both', expand=True)
 
-        # Treeview — keep headings, tuned widths
-        self.tree = ttk.Treeview(table_container, columns=COLUMNS, show='headings')
+        # Treeview
+        self.tree = ttk.Treeview(table_container, columns=COLUMNS, show='headings', selectmode='browse')
+        # add striped row tags
+        self.tree.tag_configure('oddrow', background=COLORS['bg_medium'])
+        self.tree.tag_configure('evenrow', background='#0d1516')  # slightly darker
         for col in COLUMNS:
             self.tree.heading(col, text=col)
-            width = 180 if col == "Name" else 140
-            # setting a small minwidth and enabling stretch keeps the columns separated visually
+            width = 200 if col == "Name" else 140
             self.tree.column(col, width=width, anchor='w', minwidth=80, stretch=True)
         self.tree.pack(side='left', fill='both', expand=True)
 
@@ -217,24 +264,22 @@ class SeedManagerApp:
         xscroll.pack(fill='x')
         self.tree.configure(xscrollcommand=xscroll.set)
 
-        # Double-click behavior: if user double-clicks a long-text column cell -> open popup, otherwise load into form
         self.tree.bind("<Double-1>", self.on_tree_double_click)
 
         # form area below table
         form_frame_outer = tk.Frame(main_area, bg=COLORS['bg_dark'])
-        form_frame_outer.pack(fill='x', pady=(6,0))
+        form_frame_outer.pack(fill='x', pady=(12,0))
 
         form_frame = tk.LabelFrame(form_frame_outer, text=" Add / Edit Seed (double-click row to load)", bg=COLORS['bg_medium'],
                                    fg=COLORS['accent'], font=('Segoe UI', 10, 'bold'), labelanchor='n', padx=12, pady=8)
         form_frame.pack(fill='x')
 
-        # create form grid (4 columns of inputs)
+        # create form grid (4 columns)
         months = [str(i).zfill(2) for i in range(1,13)]
         days = [str(i).zfill(2) for i in range(1,32)]
         years = [str(y) for y in range(datetime.datetime.now().year, datetime.datetime.now().year + 6)]
         temps = [str(i) for i in range(0, 101)]
-        depths = [f"{i/2:.1f}" for i in range(0, 21)]  # 0.0 .. 10.0
-        # Transplant timeframe now increments by 1 from 1 to 20 (per request)
+        depths = [f"{i/2:.1f}" for i in range(0, 21)]
         transplant_weeks = [str(i) for i in range(1, 21)]
         maturity_days = [str(i) for i in range(0, 301)]
 
@@ -245,24 +290,20 @@ class SeedManagerApp:
             lbl = tk.Label(form_frame, text=col, bg=COLORS['bg_medium'], fg=COLORS['text_dim'], font=('Segoe UI', 9, 'bold'))
             lbl.grid(row=row, column=colpos, sticky='w', padx=(4,6), pady=6)
 
-            # special inputs
             widget = None
 
-            # lifecycle
             if col == "Life Cycle":
                 var = tk.StringVar()
                 self.form_vars[col] = var
                 widget = ttk.Combobox(form_frame, textvariable=var, values=["Annual", "Perennial"], width=18)
                 widget.set("Annual")
 
-            # Heirloom as dropdown
             elif col == "Heirloom (Y/N)":
                 var = tk.StringVar()
                 self.form_vars[col] = var
                 widget = ttk.Combobox(form_frame, textvariable=var, values=["Yes", "No", "Unknown"], width=12)
                 widget.set("Unknown")
 
-            # Season checkboxes (multiple)
             elif col == "Season/s":
                 frm = tk.Frame(form_frame, bg=COLORS['bg_medium'])
                 frm.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
@@ -272,9 +313,8 @@ class SeedManagerApp:
                     cb = ttk.Checkbutton(frm, text=s, variable=sv)
                     cb.pack(side='left', padx=(0,6))
                     self.season_vars[s] = sv
-                widget = frm  # placeholder frame already placed
+                widget = frm
 
-            # Temperature range (min/max)
             elif col == "Temperature (F)":
                 frm = tk.Frame(form_frame, bg=COLORS['bg_medium'])
                 frm.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
@@ -286,18 +326,15 @@ class SeedManagerApp:
                 cb1.pack(side='left'); tk.Label(frm, text="–", bg=COLORS['bg_medium'], fg=COLORS['text']).pack(side='left', padx=4); cb2.pack(side='left')
                 widget = frm
 
-            # Seed Depth dropdown
             elif col == "Seed Depth (inches)":
                 var = tk.StringVar()
                 self.form_vars[col] = var
                 widget = ttk.Combobox(form_frame, textvariable=var, values=depths, width=10)
                 widget.set(depths[0])
 
-            # Approximate Start Date (allow multiple month/day entries)
             elif col == "Approximate Start Date":
                 frm = tk.Frame(form_frame, bg=COLORS['bg_medium'])
                 frm.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
-                # month/day dropdowns + add button + display
                 mvar = tk.StringVar(); dvar = tk.StringVar()
                 mcb = ttk.Combobox(frm, textvariable=mvar, values=months, width=5)
                 dcb = ttk.Combobox(frm, textvariable=dvar, values=days, width=5)
@@ -308,13 +345,11 @@ class SeedManagerApp:
                 self.multi_values["Approximate Start Date"] = {"values": [], "display": display}
                 widget = frm
 
-            # Transplant Timeframe (weeks) dropdown (1..20)
             elif col == "Transplant Timeframe (weeks)":
                 var = tk.StringVar(); self.form_vars[col] = var
                 widget = ttk.Combobox(form_frame, textvariable=var, values=transplant_weeks, width=10)
                 widget.set(transplant_weeks[0])
 
-            # Time to Maturity as range (min-max days)
             elif col == "Time to Maturity":
                 frm = tk.Frame(form_frame, bg=COLORS['bg_medium'])
                 frm.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
@@ -326,7 +361,6 @@ class SeedManagerApp:
                 cb1.pack(side='left'); tk.Label(frm, text="–", bg=COLORS['bg_medium'], fg=COLORS['text']).pack(side='left', padx=4); cb2.pack(side='left')
                 widget = frm
 
-            # Seed Started Date - allow multiple mm/dd/yyyy values
             elif col == "Seed Started Date":
                 frm = tk.Frame(form_frame, bg=COLORS['bg_medium'])
                 frm.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
@@ -342,16 +376,11 @@ class SeedManagerApp:
                 self.multi_values["Seed Started Date"] = {"values": [], "display": display}
                 widget = frm
 
-            # Transplant Date & Harvest Date - single mm/dd/yyyy entry (string) using simple entry (you can type or use pattern)
             elif col in ("Transplant Date", "Harvest Date"):
                 widget = self.create_entry(form_frame, width=18)
 
-            # Pairings, Uses, Benefits, Issues, Comments are textareas
             elif col in ("Comments", "Benefits", "Uses", "Issues", "Pairings"):
-                # Pairings may be typed in as comma-separated string; keep as single-line text widget but allow multiple words
-                # We'll treat Pairings as a text entry (single-line) to match previous behavior in CSV and to avoid layout change
                 if col == "Pairings":
-                    # use Entry for Pairings to keep it compact (but allow long text)
                     ent = self.create_entry(form_frame, width=28)
                     widget = ent
                 else:
@@ -359,12 +388,9 @@ class SeedManagerApp:
                     widget = txt
 
             else:
-                # default entry (Name, Type, Germination, Spacing, Location, Pairings)
                 widget = self.create_entry(form_frame, width=22)
 
-            # if widget not already gridded (some were)
             if col not in ("Season/s", "Approximate Start Date", "Seed Started Date"):
-                # many special widgets were already placed; put remaining ones
                 if widget is not None:
                     widget.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
 
@@ -376,7 +402,7 @@ class SeedManagerApp:
 
         add_btn = self.create_modern_button(action_frame, "➕ ADD / UPDATE", self.add_or_update_entry, bg_color=COLORS['success'])
         add_btn.pack(side='left', padx=8)
-        del_btn = self.create_modern_button(action_frame, "🗑 DELETE", self.delete_entry, bg_color='#ef4444')
+        del_btn = self.create_modern_button(action_frame, "🗑 DELETE", self.delete_entry, bg_color=COLORS['danger'])
         del_btn.pack(side='left', padx=8)
         clear_btn = self.create_modern_button(action_frame, "✖ CLEAR", self.clear_form)
         clear_btn.pack(side='left', padx=8)
@@ -385,7 +411,6 @@ class SeedManagerApp:
 
     # ---------- multi-date helper ----------
     def add_multi_date(self, column_name, month, day, year=None):
-        # month/day pair or month/day/year if year given
         if not month or not day:
             return
         if year:
@@ -395,7 +420,6 @@ class SeedManagerApp:
         mv = self.multi_values.get(column_name)
         if mv is None:
             return
-        # avoid duplicates
         if s not in mv['values']:
             mv['values'].append(s)
             mv['display'].config(text=", ".join(mv['values']))
@@ -403,10 +427,9 @@ class SeedManagerApp:
     # ---------- UI helpers ----------
     def update_name_dropdown(self):
         names = [r.get("Name", "") for r in self.data if r.get("Name", "")]
-        names_unique = sorted(list(dict.fromkeys(names)))  # keep order unique
+        names_unique = sorted(list(dict.fromkeys(names)))
         self.name_dropdown['values'] = names_unique
 
-        # pairings: build from split items (comma-separated) across all rows
         pairing_items = set()
         for r in self.data:
             p = r.get("Pairings", "")
@@ -419,6 +442,14 @@ class SeedManagerApp:
 
         seasons = sorted(set([r.get("Season/s", "") for r in self.data if r.get("Season/s")]))
         self.season_dd['values'] = seasons
+
+    def live_search(self):
+        q = self.search_var.get().strip().lower()
+        if not q:
+            self.filtered_data = self.data.copy()
+        else:
+            self.filtered_data = [r for r in self.data if q in r.get("Name", "").lower()]
+        self.refresh_table()
 
     # ---------- filters & sorts ----------
     def sort_by_name(self):
@@ -437,7 +468,6 @@ class SeedManagerApp:
         val = self.pairing_var.get().strip().lower()
         if not val:
             return
-        # include rows where any of the comma-separated pairings matches the selected item
         def row_has_pairing(row):
             p = row.get("Pairings", "")
             if not p:
@@ -457,25 +487,24 @@ class SeedManagerApp:
     def reset_filters(self):
         self.pairing_var.set('')
         self.season_filter_var.set('')
+        self.search_var.set('')
         self.filtered_data = self.data.copy()
         self.refresh_table()
 
     # ---------- table/form linking ----------
     def refresh_table(self):
-        # empty tree
         for row in self.tree.get_children():
             self.tree.delete(row)
-        # insert filtered rows
-        for r in self.filtered_data:
+        for idx, r in enumerate(self.filtered_data):
             values = [r.get(col, "") for col in COLUMNS]
-            self.tree.insert('', 'end', values=values)
+            tag = 'evenrow' if idx % 2 == 0 else 'oddrow'
+            self.tree.insert('', 'end', values=values, tags=(tag,))
         self.update_name_dropdown()
 
     def on_name_select(self, event=None):
         name = self.name_var.get()
         if not name:
             return
-        # find first occurrence and load
         for idx, row in enumerate(self.data):
             if row.get("Name", "") == name:
                 self.selected_index = idx
@@ -483,9 +512,8 @@ class SeedManagerApp:
                 break
 
     def on_tree_double_click(self, event):
-        # identify which row and column were clicked
         row_id = self.tree.identify_row(event.y)
-        col_id = self.tree.identify_column(event.x)  # returns like '#1', '#2' etc
+        col_id = self.tree.identify_column(event.x)
         if not row_id or not col_id:
             return
         try:
@@ -499,19 +527,14 @@ class SeedManagerApp:
             cell_value = ""
             if col_index < len(values):
                 cell_value = values[col_index] or ""
-
-            # If the clicked column is a long-text column, open a popup to show full text (wrapped)
             if col_name in LONG_TEXT_COLUMNS:
                 self.open_text_popup(col_name, cell_value)
                 return
 
-        # otherwise default behavior: load the whole selected row into form (preserve old behavior)
-        # select the row and call load_selected_to_form
         self.tree.selection_set(row_id)
         self.load_selected_to_form()
 
     def open_text_popup(self, title, text):
-        # simple dark-themed popup to show/wrap the full text of a cell
         popup = tk.Toplevel(self.root)
         popup.title(title)
         popup.configure(bg=COLORS['bg_dark'])
@@ -524,32 +547,23 @@ class SeedManagerApp:
 
         txt = tk.Text(popup, wrap='word', bg=COLORS['bg_medium'], fg=COLORS['text'], insertbackground=COLORS['accent'])
         txt.pack(fill='both', expand=True, padx=12, pady=(0,12))
-
-        # insert text and make read-only
         txt.insert('1.0', text)
         txt.configure(state='disabled')
 
-        # a close button
         btn = self.create_modern_button(popup, "Close", lambda: popup.destroy(), bg_color=COLORS['bg_light'], width=10)
         btn.pack(pady=(0,12))
-
-    def on_tree_right_click(self, event):
-        # reserved if you want context menu later; not currently used
-        pass
 
     def load_selected_to_form(self):
         sel = self.tree.selection()
         if not sel:
             return
         vals = self.tree.item(sel[0], 'values')
-        # build row dict to pass
         row = {}
         for i, col in enumerate(COLUMNS):
             if i < len(vals):
                 row[col] = vals[i]
             else:
                 row[col] = ""
-        # set selected_index to index in data if name matches
         name = row.get("Name", "")
         for idx, r in enumerate(self.data):
             if r.get("Name", "") == name:
@@ -558,9 +572,7 @@ class SeedManagerApp:
         self.load_row_into_form(row)
 
     def load_row_into_form(self, row):
-        # clear form first
         self.clear_form()
-
         for col in COLUMNS:
             val = row.get(col, "")
             widget = self.entries.get(col)
@@ -569,18 +581,15 @@ class SeedManagerApp:
                     widget.delete("1.0", tk.END)
                     widget.insert("1.0", val)
             elif col == "Pairings":
-                # Pairings stored as comma-separated string in an Entry
                 w = self.entries.get(col)
                 if isinstance(w, tk.Entry):
                     w.delete(0, tk.END)
                     w.insert(0, val)
             elif col == "Season/s":
-                # val can be comma separated
                 selected = [s.strip() for s in val.split(',') if s.strip()]
                 for s, var in self.season_vars.items():
                     var.set(s in selected)
             elif col == "Temperature (F)":
-                # expect "min-max"
                 try:
                     mn, mx = val.split('-', 1)
                     self.form_vars["TempMin"].set(mn)
@@ -606,7 +615,6 @@ class SeedManagerApp:
                 if val and self.form_vars.get(col) is not None:
                     self.form_vars[col].set(val)
             elif col == "Approximate Start Date":
-                # comma-separated list of mm/dd or mm/dd/yyyy
                 mv = self.multi_values.get("Approximate Start Date")
                 if mv:
                     vals = [p.strip() for p in val.split(',') if p.strip()]
@@ -619,21 +627,17 @@ class SeedManagerApp:
                     mv['values'] = vals
                     mv['display'].config(text=", ".join(vals))
             else:
-                # default entry or text
                 w = self.entries.get(col)
                 if isinstance(w, tk.Entry):
                     w.delete(0, tk.END); w.insert(0, val)
                 elif isinstance(w, tk.Text):
                     w.delete("1.0", tk.END); w.insert("1.0", val)
-
-        # set name dropdown
         if row.get("Name"):
             self.name_var.set(row.get("Name"))
 
     # ---------- add / update / delete ----------
     def add_or_update_entry(self):
         new = {}
-        # gather form data
         for col in COLUMNS:
             if col in ("Comments", "Benefits", "Uses", "Issues"):
                 w = self.entries[col]
@@ -680,7 +684,6 @@ class SeedManagerApp:
             messagebox.showwarning("Validation", "Name is required.")
             return
 
-        # find existing by name and update, else append
         found = False
         for i, row in enumerate(self.data):
             if row.get("Name", "") == new["Name"]:
@@ -690,7 +693,6 @@ class SeedManagerApp:
         if not found:
             self.data.append(new)
 
-        # persist and refresh
         self.save_to_csv()
         self.reset_filters()
         self.refresh_table()
@@ -713,8 +715,6 @@ class SeedManagerApp:
             messagebox.showinfo("Deleted", f"Deleted '{name}'")
 
     def manual_save(self):
-        # Save current form content without clearing
-        # will add/update like add_or_update_entry but keep fields
         new = {}
         for col in COLUMNS:
             if col in ("Comments", "Benefits", "Uses", "Issues"):
@@ -762,7 +762,6 @@ class SeedManagerApp:
             messagebox.showwarning("Validation", "Name is required to save.")
             return
 
-        # update or create
         found = False
         for i, row in enumerate(self.data):
             if row.get("Name", "") == new["Name"]:
@@ -802,13 +801,11 @@ class SeedManagerApp:
 
     # ---------- helpers ----------
     def clear_form(self):
-        # clear entries and multi-values
         for col, w in self.entries.items():
             if isinstance(w, tk.Entry):
                 w.delete(0, tk.END)
             elif isinstance(w, tk.Text):
                 w.delete("1.0", tk.END)
-            # comboboxes handled via form_vars
         for v in self.form_vars.values():
             try:
                 v.set('')
