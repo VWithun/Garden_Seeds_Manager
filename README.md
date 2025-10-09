@@ -1,30 +1,41 @@
-# 🌱 Seed Manager
+# 🌱 **Seed Manager**
 
-A sleek and modern **Seed Management Tool** built with **Python** and **Tkinter**. Easily track your seeds, germination times, planting schedules, and more—all stored in an **Excel file**. Perfect for gardeners, hobbyists, and small farms.
-
----
-
-## Snapshot
-
-![Seed Manager Snapshot](snapshot.png)
+> A sleek, modern, and intuitive **Seed Management Tool** built with **Python + Tkinter**.  
+Easily track your seeds, germination times, planting schedules, and more—all stored securely in an Excel file.  
+Perfect for **gardeners**, **hobbyists**, and **small farms** 🌾
 
 ---
 
-## Features
-
-- **Efficient Management:** Clear form and table view for managing seeds.
-- **Auto-Save:** Ensures all data is automatically saved to prevent loss.
-- **Multi-Value Fields:** Supports complex seed information with fields like spacing or depth allowing multiple entries.
-- **Intuitive Input:** Includes date and temperature pickers for easy data entry.
-- **Filter and Edit:** Easily find and modify seeds via a dropdown menu or direct table selection.
-- **Data Integrity:** Options to clear the form or delete a selected row.
-- **Portable Data:** Saves all information to a standard **Excel file** (`.xlsx`) for portability and backup.
+## 📸 **Snapshot**
+![Seed Manager Screenshot](https://github.com/VWithun/Garden_Seeds_Manager/blob/main/image.png)  
+<sub>*Modern, dark-mode inspired interface with smooth interactions and real-time data updates.*</sub>
 
 ---
 
-## Requirements
+## ✨ **Features**
 
-This app requires **Python 3.10+** and the following packages:
+- 🪴 **Efficient Management:** Clean form + interactive table for seed tracking.  
+- 💾 **Auto-Save:** Never lose your progress — all edits are saved automatically.  
+- 🌿 **Multi-Value Fields:** Add complex details like spacing or depth with multi-entry support.  
+- 🗓️ **Intuitive Input:** Built-in date and temperature pickers for seamless data entry.  
+- 🔍 **Filter & Edit:** Quickly find and update any seed using dropdowns or table clicks.  
+- 🧹 **Data Integrity Tools:** One-click “Clear Form” and “Delete Row” options.  
+- 📤 **Portable Data:** Save and share your garden database via standard Excel files (`.xlsx`).  
+- 🌗 **Dark Mode Inspired:** A modern interface for comfortable viewing.
+
+---
+
+## ⚙️ **Requirements**
+
+Ensure you have **Python 3.10+** installed.  
+Then install dependencies with:
+
+```bash
+pip install -r requirements.txt
+Required packages:
+
+ini
+Copy code
 pandas==2.3.3
 openpyxl==3.1.5
 numpy==2.3.3
@@ -34,73 +45,73 @@ tzdata==2025.2
 six==1.17.0
 packaging==25.0
 et_xmlfile==2.0.0
-Install dependencies with:
-## Getting Started
 
-### 1. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-git clone [https://github.com/VWithun/Garden_Seeds_Manager/tree/main](https://github.com/VWithun/Garden_Seeds_Manager/tree/main)
+🚀 Getting Started
+1️⃣ Clone the Repository
+bash
+Copy code
+git clone https://github.com/VWithun/Garden_Seeds_Manager.git
 cd Seed-Manager
+2️⃣ Ensure Excel File Exists
+The app expects a file named seed_list.xlsx with the following columns:
 
-2. Ensure the Excel file exists
-The app expects a default Excel file named seed_list.xlsx with the following columns:
+pgsql
+Copy code
+Name, Type, Life Cycle, Germination (days), Seed Spacing (inches),
+Temperature (F), Seed Depth (inches), Approximate Start Date (mm/yy),
+Transplant Timeframe (weeks), Time to Maturity (days), Heirloom (Y/N),
+Season/s, Benefits, Uses, Pairings, Seed Started Date, Location,
+Transplant Date, Harvest Date, Issues, Comments
+🧩 If the file doesn’t exist, the app will automatically create a blank version with these columns.
 
-
-Name, Type, Life Cycle, Germination (days),
-Seed Spacing (inches), Temperature (F), Seed Depth (inches),
-Approximate Start Date (mm/yy), Transplant Timeframe (weeks),
-Time to Maturity (days), Heirloom (Y/N), Season/s,
-Benefits, Uses, Pairings, Seed Started Date,
-Location, Transplant Date, Harvest Date, Issues, Comments
-Note: If the file doesn’t exist, the app will automatically create a blank one with these columns.
-
-3. Run the app
-Bash
-
+▶️ Run the App
+bash
+Copy code
 python seed_manager.py
-
-### How to Use
-Add a New Seed
-
+🌼 How to Use
+➕ Add a New Seed
 Fill out the form on the left.
 
-Multi-value fields (like spacing and depth) allow multiple entries.
+Fields like Spacing or Depth can accept multiple values.
 
-Click Clear Form to reset the input fields.
+Click Clear Form to reset all inputs.
 
-### Edit a Seed
+✏️ Edit a Seed
+Select a seed from the dropdown or table.
 
-Select a seed from the dropdown menu or directly in the table.
+Make your edits — changes save automatically.
 
-Modify the necessary fields. The app auto-saves the changes.
-
-### Delete a Seed
-
+❌ Delete a Seed
 Select a seed in the table view.
 
 Click Delete Selected Row.
 
-### Save & Export
+💾 Save & Export
+All changes are auto-saved to seed_list.xlsx.
 
-Changes are auto-saved to seed_list.xlsx.
+Use Save As to export a copy to a new file.
 
-Use the Save As function to export a copy of your data to a new file.
+🔎 View & Filter
+Scroll through your full seed list in the table view.
 
-### View & Filter
+Use built-in scrollbars for smooth navigation.
 
-The table view on the right displays all seeds.
+🧠 Tech Stack
+Technology	Purpose
+Python	Core programming language
+Tkinter	GUI framework
+Pandas	Data management
+OpenPyXL	Excel integration
+NumPy	Data manipulation
+Dark Theme	Sleek and comfortable interface
 
-Use scrollbars for easy navigation.
+📄 License
+This repository is released under the
+Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license.
 
-### License
+You may read the full license here:
+👉 CC BY-NC-ND 4.0 License
 
-This repository is released under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) license.
+© 2025 VWithun -- https://github.com/VWithun/
+All rights reserved. You may not copy, redistribute, or modify this project without explicit permission.
 
-You may view the full license here: CC BY-NC-ND 4.0
-
-© 2025 Vanessa W. All rights reserved.
-You may not copy, redistribute, or modify this project without explicit permission.
