@@ -1,4 +1,3 @@
-# seed_manager.py  — Modernized UI (dark / "Spotify-ish" look)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
@@ -827,3 +826,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
