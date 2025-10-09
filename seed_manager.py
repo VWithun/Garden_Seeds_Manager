@@ -1,3 +1,4 @@
+# seed_manager.py  — Modernized UI (dark / "Spotify-ish" look)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
@@ -209,6 +210,11 @@ class SeedManagerApp:
         reset_btn = self.create_modern_button(search_frame, "⟲ Reset Filters", self.reset_filters, bg_color=COLORS['bg_dark'])
         reset_btn.pack(padx=8, pady=(6,12), fill='x')
 
+
+
+
+
+
         # main content area
         main_area = tk.Frame(top, bg=COLORS['bg_dark'])
         main_area.pack(side='left', fill='both', expand=True, padx=(8,16), pady=16)
@@ -278,8 +284,8 @@ class SeedManagerApp:
         days = [str(i).zfill(2) for i in range(1,32)]
         years = [str(y) for y in range(datetime.datetime.now().year, datetime.datetime.now().year + 6)]
         temps = [str(i) for i in range(0, 101)]
-        depths = [f"{i/2:.1f}" for i in range(0, 21)]
-        transplant_weeks = [str(i) for i in range(1, 21)]
+        depths = [f"{i/4:.1f}" for i in range(0, 21)]
+        transplant_weeks = [str(i) for i in range(0, 21)]
         maturity_days = [str(i) for i in range(0, 301)]
 
         for i, col in enumerate(COLUMNS):
@@ -439,9 +445,22 @@ class SeedManagerApp:
         pairings_sorted = sorted(pairing_items, key=lambda s: s.lower())
         self.pairing_dd['values'] = pairings_sorted
 
-        seasons = sorted(set([r.get("Season/s", "") for r in self.data if r.get("Season/s")]))
-        self.season_dd['values'] = seasons
-
+      # ... (other code for pairing_dd values)
+        
+        season_items = set()
+        for r in self.data:
+            s = r.get("Season/s", "")
+            if s:
+                # Split the Season/s string by comma and add each unique part
+                parts = [part.strip() for part in s.split(',') if part.strip()]
+                for part in parts:
+                    season_items.add(part)
+        
+        # Add a default 'All Seasons' option to the beginning
+        seasons_sorted = ["All Seasons"] + sorted(season_items, key=lambda s: s.lower())
+        self.season_dd['values'] = seasons_sorted
+        self.season_dd.set("All Seasons") # Set default to show everything
+        
     def live_search(self):
         q = self.search_var.get().strip().lower()
         if not q:
@@ -477,19 +496,37 @@ class SeedManagerApp:
         self.refresh_table()
 
     def filter_season(self):
-        val = self.season_filter_var.get().strip().lower()
-        if not val:
+        val = self.season_filter_var.get().strip()
+        if not val or val == "All Seasons":
+            # If nothing selected or "All Seasons", reset to all data
+            self.live_search() # Re-run live search/reset to ensure other filters are respected
             return
-        self.filtered_data = [r for r in self.data if val in r.get("Season/s", "").lower()]
+            
+        # Helper function to check if a row contains the selected season
+        def row_has_season(row, selected_season):
+            seasons_str = row.get("Season/s", "")
+            if not seasons_str:
+                return False
+            # Normalize seasons in the row to a list of stripped, lowercased strings
+            seasons_in_row = [s.strip().lower() for s in seasons_str.split(',') if s.strip()]
+            return selected_season.lower() in seasons_in_row
+
+        # Filter the *full* data set (self.data) based on the season
+        # Note: A proper chained filtering system would apply this filter to a prior filtered set (like self.filtered_data),
+        # but since the other filters reset self.filtered_data, we'll follow that pattern and filter the raw self.data
+        # If you want to combine filters, you'd need to modify `live_search` and `filter_pairing` to also call a single `apply_filters` method.
+        # For a simple, separate filter like the current implementation, this is fine.
+        
+        self.filtered_data = [r for r in self.data if row_has_season(r, val)]
         self.refresh_table()
 
     def reset_filters(self):
         self.pairing_var.set('')
-        self.season_filter_var.set('')
+        self.season_filter_var.set('All Seasons') # Set the filter variable to the new default
         self.search_var.set('')
         self.filtered_data = self.data.copy()
         self.refresh_table()
-
+        
     # ---------- table/form linking ----------
     def refresh_table(self):
         for row in self.tree.get_children():
@@ -826,4 +863,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
