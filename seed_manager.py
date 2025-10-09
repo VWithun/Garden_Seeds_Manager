@@ -1,4 +1,4 @@
-
+# seed_manager.py  — Modernized UI (dark / "Spotify-ish" look)
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import csv
@@ -284,8 +284,8 @@ class SeedManagerApp:
         maturity_days = [str(i) for i in range(0, 301)]
 
         for i, col in enumerate(COLUMNS):
-            row = i // 4
-            colpos = (i % 4) * 2
+            row = i // 2
+            colpos = (i % 2) * 2
 
             lbl = tk.Label(form_frame, text=col, bg=COLORS['bg_medium'], fg=COLORS['text_dim'], font=('Segoe UI', 9, 'bold'))
             lbl.grid(row=row, column=colpos, sticky='w', padx=(4,6), pady=6)
@@ -340,7 +340,7 @@ class SeedManagerApp:
                 dcb = ttk.Combobox(frm, textvariable=dvar, values=days, width=5)
                 mcb.set(months[0]); dcb.set(days[0])
                 add_btn = self.create_modern_button(frm, "+", lambda c="Approximate Start Date", mv=mvar, dv=dvar: self.add_multi_date(c, mv.get(), dv.get()), bg_color=COLORS['bg_light'], width=2)
-                display = tk.Label(frm, text="", bg=COLORS['bg_medium'], fg=COLORS['text'], anchor='w', width=24)
+                display = tk.Label(frm, text="", bg=COLORS['bg_medium'], fg=COLORS['text'], anchor='w', width=20)
                 mcb.pack(side='left'); tk.Label(frm, text="/", bg=COLORS['bg_medium'], fg=COLORS['text']).pack(side='left'); dcb.pack(side='left'); add_btn.pack(side='left', padx=6); display.pack(side='left', padx=8)
                 self.multi_values["Approximate Start Date"] = {"values": [], "display": display}
                 widget = frm
@@ -392,7 +392,7 @@ class SeedManagerApp:
 
             if col not in ("Season/s", "Approximate Start Date", "Seed Started Date"):
                 if widget is not None:
-                    widget.grid(row=row, column=colpos+1, sticky='w', padx=(0,12), pady=6)
+                    widget.grid(row=row, column=colpos+1, sticky='w', padx=(0,0), pady=0) 
 
             self.entries[col] = widget
 
@@ -827,4 +827,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
